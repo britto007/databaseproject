@@ -9,6 +9,8 @@ USE flightbook1;
 
 SET FOREIGN_KEY_CHECKS = 0;
 
+DROP TABLE IF EXISTS payments;
+DROP TABLE IF EXISTS bookings;
 DROP TABLE IF EXISTS flights;
 DROP TABLE IF EXISTS aircraft;
 DROP TABLE IF EXISTS routes;
@@ -62,6 +64,28 @@ CREATE TABLE flights (
     seats_avail  INT NOT NULL CHECK (seats_avail >= 0),
     CONSTRAINT fk_flight_route    FOREIGN KEY (route_id) REFERENCES routes(route_id),
     CONSTRAINT fk_flight_aircraft FOREIGN KEY (tail_no)  REFERENCES aircraft(tail_no)
+);
+
+-- Bookings
+CREATE TABLE bookings (
+    book_id   INT AUTO_INCREMENT PRIMARY KEY,
+    pass_id   INT NOT NULL,
+    flight_id INT NOT NULL,
+    seat_no   VARCHAR(10) NOT NULL,
+    status    ENUM('Confirmed', 'Cancelled') NOT NULL DEFAULT 'Confirmed',
+    fare      DECIMAL(10,2) NOT NULL,
+    CONSTRAINT fk_booking_passenger FOREIGN KEY (pass_id) REFERENCES passengers(pass_id),
+    CONSTRAINT fk_booking_flight    FOREIGN KEY (flight_id) REFERENCES flights(flight_id) ON DELETE CASCADE
+);
+
+-- Payments
+CREATE TABLE payments (
+    pay_id     INT AUTO_INCREMENT PRIMARY KEY,
+    book_id    INT NOT NULL,
+    amount     DECIMAL(10,2) NOT NULL,
+    pay_method VARCHAR(50) NOT NULL,
+    status     ENUM('Pending', 'Completed', 'Failed', 'Refunded') NOT NULL DEFAULT 'Pending',
+    CONSTRAINT fk_payment_booking FOREIGN KEY (book_id) REFERENCES bookings(book_id) ON DELETE CASCADE
 );
 
 -- Sample data
