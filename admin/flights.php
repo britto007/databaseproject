@@ -25,20 +25,12 @@ $aircraft = db_fetch_all('SELECT tail_no, model, capacity FROM aircraft ORDER BY
 if ($action === 'delete' && isset($_POST['flight_id'])) {
     $flightId = (int) $_POST['flight_id'];
     try {
-        $bookingCount = db_fetch_one(
-            "SELECT COUNT(*) AS cnt FROM bookings WHERE flight_id = :id AND status = 'Confirmed'",
-            [':id' => $flightId]
-        );
-        $count = (int) ($bookingCount['CNT'] ?? $bookingCount['cnt'] ?? 0);
-        if ($count > 0) {
-            $errors[] = 'Cannot delete flight with active bookings.';
-        } else {
-            db_query('DELETE FROM flights WHERE flight_id = :id', [':id' => $flightId]);
-            flash_set('success', 'Flight deleted successfully.');
-            redirect('admin/flights.php');
-        }
+        $stmt = db()->prepare('CALL Delete_Flight(:id)');
+        $stmt->execute([':id' => $flightId]);
+        flash_set('success', 'Flight deleted successfully.');
+        redirect('admin/flights.php');
     } catch (Throwable $e) {
-        $errors[] = 'Unable to delete flight.';
+        $errors[] = db_error_message($e);
     }
 }
 
@@ -81,21 +73,23 @@ if ($action === 'save') {
                 );
                 flash_set('success', 'Flight updated successfully.');
             } else {
-                db_query(
-                    'INSERT INTO flights (route_id, tail_no, dept_time, seats_avail)
-                     VALUES (:route_id, :tail_no, :dept_time, :seats_avail)',
-                    [
-                        ':route_id'    => $routeId,
-                        ':tail_no'     => $tailNo,
-                        ':dept_time'   => $deptTime,
-                        ':seats_avail' => $seatsAvail,
-                    ]
+                $stmt = db()->prepare(
+                    'CALL Add_Flight(:route_id, :tail_no, :dept_time, :seats_avail, @flight_id)'
                 );
+                $stmt->execute([
+                    ':route_id'    => $routeId,
+                    ':tail_no'     => $tailNo,
+                    ':dept_time'   => $deptTime,
+                    ':seats_avail' => $seatsAvail,
+                ]);
+                while ($stmt->nextRowset()) {
+                    continue;
+                }
                 flash_set('success', 'Flight created successfully.');
             }
             redirect('admin/flights.php');
         } catch (Throwable $e) {
-            $errors[] = 'Unable to save flight.';
+            $errors[] = db_error_message($e);
         }
     }
 }
